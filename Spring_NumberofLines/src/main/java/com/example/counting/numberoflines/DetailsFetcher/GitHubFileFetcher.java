@@ -2,12 +2,20 @@ package com.example.counting.numberoflines.DetailsFetcher;
 
 import com.example.counting.numberoflines.methods.countLinesInTheFile;
 import com.example.counting.numberoflines.methods.readContentFromTheFile;
+import org.gitlab4j.api.GitLabApi;
+import org.gitlab4j.api.GitLabApiException;
+import org.gitlab4j.api.models.Project;
+import org.gitlab4j.api.models.TreeItem;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.kohsuke.github.GHContent;
 import org.kohsuke.github.GHRepository;
 import org.kohsuke.github.GitHub;
 
 import java.io.*;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -34,9 +42,11 @@ public class GitHubFileFetcher {
     public LinkedHashMap<String,Integer> numberOfLines(GHRepository repo) throws IOException, InterruptedException {
 
         ExecutorService executorService = Executors.newFixedThreadPool(10);
+        List<String> javaFiles = new ArrayList<>();
+        findJavaFiles(repo.getDirectoryContent(""), repo, javaFiles);
 
-        for (GHContent content : repo.getDirectoryContent("")) {
-            if (content.getName().endsWith(".java")) {
+            for(String singleJavaFile:javaFiles){
+            GHContent content = repo.getFileContent(singleJavaFile);
                 executorService.submit(() -> {
 //  executorService is an instance of ExecutorService,
 //  which is a higher-level interface for executing tasks asynchronously in Java.
@@ -62,10 +72,21 @@ public class GitHubFileFetcher {
                             numberOfLines.put(content.getName(), linesNumber);
                         }
                     });
-            }
         }
         executorService.shutdown();
         executorService.awaitTermination(30, TimeUnit.SECONDS);
         return numberOfLines;
+    }
+
+    private static void findJavaFiles(List<GHContent> contentList, GHRepository repo, List<String> javaFiles) throws IOException {
+        for (GHContent content : contentList) {
+            if (content.isDirectory()) {
+                List<GHContent> subTree = repo.getDirectoryContent(content.getPath());
+                findJavaFiles(subTree, repo, javaFiles);
+            } else if (content.getName().endsWith(".java")) {
+                String fileContent = content.getPath();
+                javaFiles.add(fileContent);
+            }
+        }
     }
 }

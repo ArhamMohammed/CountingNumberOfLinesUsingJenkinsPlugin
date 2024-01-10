@@ -39,7 +39,7 @@ public class ProjectStatsBuildWrapper extends BuildWrapper {
 
     static final String localhostUrlForCounting = "http://localhost:9091/counting";
     String versionControl = StringUtils.EMPTY;
-    static final String authenticationKeyForGitHub = "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";
+    static final String authenticationKeyForGitHub = "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";
     static final String authenticationKeyForGitLab = "glpat-n6bxZQDixKNu1u9D4CEW";
 
     static final String localhostUrlForGeneratingReport = "http://localhost:9091/generateReport";

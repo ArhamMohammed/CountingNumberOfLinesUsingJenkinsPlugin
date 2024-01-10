@@ -11,8 +11,8 @@ public class Test {
     public static void main(String args[]) throws InterruptedException, IOException {
         final String localhostUrlForCounting = "http://localhost:9091/counting";
 
-        final String fullRepoURLForGithub = "https://github.com/ArhamMohammed/JenkinsPracticeWithTwoFiles";
-        final String authenticationKeyForGitHub = "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";
+        final String fullRepoURLForGithub = "https://github.com/ArhamMohammed/CountingNumberOfLinesUsingJenkinsPlugin";
+        final String authenticationKeyForGitHub = "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";
         final String branchNameForGitHub = "origin/master";
         final String apiUrlForGeneratingReport = "http://localhost:9091/generateReport";
 
