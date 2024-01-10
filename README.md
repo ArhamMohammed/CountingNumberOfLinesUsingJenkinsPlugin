@@ -1,28 +1,5 @@
-# CountingNumberofLinesInARepo
+This is a repo which shows how a custom plugin which has been developed works.
 
-## Introduction
-
-TODO Describe what your plugin does here
-
-## Getting started
-
-TODO Tell users how to configure your plugin here, include screenshots, pipeline examples and 
-configuration-as-code examples.
-
-## Issues
-
-TODO Decide where you're going to host your issues, the default is Jenkins JIRA, but you can also enable GitHub issues,
-If you use GitHub issues there's no need for this section; else add the following line:
-
-Report issues and enhancements in the [Jenkins issue tracker](https://issues.jenkins.io/).
-
-## Contributing
-
-TODO review the default [CONTRIBUTING](https://github.com/jenkinsci/.github/blob/master/CONTRIBUTING.md) file and make sure it is appropriate for your plugin, if not then add your own one adapted from the base file
-
-Refer to our [contribution guidelines](https://github.com/jenkinsci/.github/blob/master/CONTRIBUTING.md)
-
-## LICENSE
-
-Licensed under MIT, see [LICENSE](LICENSE.md)
-
+CountingNumberOfLines - This plugin will count the number of files in a repo and display the number of lines in each file.
+demo-plugin-arham	  - This plugin in which a custom build step is developed, will display the text which is taken as an input at the build step.	
+demp-Hello-World  	  - This plugin will display hello world as the output without giving any build step, and by just running the build now method.

@@ -1,0 +1,46 @@
+What is a completedfuture: (https://medium.com/javarevisited/java-completablefuture-c47ca8c885af)
+is a class that allows us to write asynchronous, non-blocking code. With completedfuture we can make some tasks or make some computations to run in the background,
+and we can move ahead with the execution. The result of the completedfuture can be ontained wherever required in the future, using the thenApply(), thenAccept(), or join().
+Specifying callback with 3 methods,
+1. thenApply()  : If we want to transform the output which we receive after finishing the completable future. It takes function as argument, it will take input and output both.
+2. thenAccept() : This is used when you just need to consume the output from the completable future. It will take the response as the argument.
+3. thenRun()    : Any action needs to be done when the completable future is done without accessing the result. Use this.
+4. thenCompose(): method is used to chain two asynchronous computations where the result of the first computation,is passed as an input to the second computation.
+5. join()       : method is used to obtain the result. It WAITS for the computation to complete and returns the result.
+
+We can assign a thread from the threadpoolexecutor for the specific future task and move ahead with our execution.
+runAsync(): 
+Used to initiate an asynchronous computation without a result. 
+Takes a Runnable representing the computation to be executed. 
+Returns a CompletableFuture<Void>.
+
+supplyAsync(): 
+Used to initiate an asynchronous computation that produces a result. 
+Takes a Supplier representing the computation to be executed. 
+Returns a CompletableFuture<T>. 
+
+Approach 1: @Async annotation which involves CompletableFuture
+
+Step 1: Create your own threadpool. If you done create it, the flow will block the main thread.
+Need to create customthreadpool task executor. If you dont create it and enable async,
+by default spring will enable async task executor with the default configuration.
+
+Step 2: We can create our own threadpool task executor, by defining the cores which are required by us, what is the queue capacity etc as per our own use case.
+So that we can play with our thread.
+
+Step 3:
+Create a configuration class, where you will create a function which returns executable, and inside the function you will have to,
+create an object of the ThreadpoolExecutor class and then specify the corepoolsize,queuecapacity and maxpoolsize. 
+This function is annotated with @Bean, and define the name of the bean.
+
+Step 4:
+We need to tell springboot to enable the asynchronous method execution. So we need to add @EnableAsync to the configuration class.
+
+Step 5:
+Add @Async("name of the bean specified") to the methods which needs to be executed in asynchornous order.
+Note: When you speficy the methods with @Async, it needs to return void or it will have to return CompletableFuture,
+or else it will return an exception, which you would not want.
+
+
+Approach 2:
+Is in the code.

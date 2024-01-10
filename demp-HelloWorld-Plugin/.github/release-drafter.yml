@@ -1,0 +1,2 @@
+_extends: .github
+tag-template: CountingNumberofLinesInARepo-$NEXT_MINOR_VERSION
