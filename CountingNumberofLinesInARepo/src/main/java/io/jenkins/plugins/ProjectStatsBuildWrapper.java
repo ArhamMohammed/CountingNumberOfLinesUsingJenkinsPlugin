@@ -13,11 +13,15 @@ import io.jenkins.plugins.VersionControl.GitlabRepoClass;
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import javax.annotation.Nonnull;
 import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.web.util.UriComponentsBuilder;
 
 public class ProjectStatsBuildWrapper extends BuildWrapper {
     // This class extends BuildWrapper, which is part of the Jenkins extension
@@ -35,18 +39,17 @@ public class ProjectStatsBuildWrapper extends BuildWrapper {
     //    For methods, final means that the method cannot be overridden by subclasses.
     //    For classes, final means that the class cannot be subclassed (i.e., cannot be extended).
 
+    private static Logger logger = LoggerFactory.getLogger(ProjectStatsBuildWrapper.class);
     public static final String REPORT_TEMPLATE_PATH = "/stats.html";
 
     static final String localhostUrlForCounting = "http://localhost:9091/counting";
-    String versionControl = StringUtils.EMPTY;
-    static final String authenticationKeyForGitHub = "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";
-    static final String authenticationKeyForGitLab = "glpat-n6bxZQDixKNu1u9D4CEW";
-
+    static final String localhostUrlForCountingForSVN = "http://localhost:9091/countingForSVN";
     static final String localhostUrlForGeneratingReport = "http://localhost:9091/generateReport";
+    String versionControl = StringUtils.EMPTY;
+    String authenticationKey = StringUtils.EMPTY;
     String root = StringUtils.EMPTY;
     String branchName = StringUtils.EMPTY;
-    // These are constants defining paths and placeholders used in the code.
-
+    String encodedRoot = StringUtils.EMPTY;
     @DataBoundConstructor
     public ProjectStatsBuildWrapper() {}
     // This is the constructor for the class. It is annotated with @DataBoundConstructor,
@@ -55,10 +58,7 @@ public class ProjectStatsBuildWrapper extends BuildWrapper {
     @Override
     public Environment setUp(AbstractBuild build, final Launcher launcher, BuildListener listener)
             throws IOException, InterruptedException {
-        EnvVars envVars = build.getEnvironment(listener);
-        root = envVars.get("GIT_URL");
-        branchName = envVars.get("GIT_BRANCH");
-        versionControl = extractVersionControlName(root);
+        //        versionControl = extractVersionControlName(envVars);
 
         // This method is part of the BuildWrapper extension point. It sets up the environment for the build.
         // Inside the setUp method, an anonymous subclass of Environment is created with a customized tearDown method.
@@ -73,46 +73,32 @@ public class ProjectStatsBuildWrapper extends BuildWrapper {
                 // This method is called at the end of the build process.
                 // It is responsible for generating project statistics, creating an HTML report,
                 // and saving it to the artifacts' directory.
-                //                boolean useAsync = false;
-                //                if(useAsync){
-                //                    ProjectStats stats1 =
-                //                            CountingLinesClient.makeApiCallForCountingAsync(apiUrlForCounting, root,
-                // authenticationKey);
-                //                    ProjectStats stats2 =
-                //                            CountingLinesClient.makeApiCallForCountingAsync(apiUrlForCounting, root,
-                // authenticationKey);
-                //                }
-                //                else{
-                //                ProjectStats stats1 =
-                //                            CountingLinesClient.makeApiCallForCounting(apiUrlForCounting, root,
-                // authenticationKey);
-                //                ProjectStats stats2 =
-                //                        CountingLinesClient.makeApiCallForCounting(apiUrlForCounting, root,
-                // authenticationKey);
-                //                }
-                // String report =
-                // CountingLinesUtilClass.generateReport(build.getProject().getDisplayName(), stats);
-
-                //                ProjectStats stats1 =
-                //                            CountingLinesClient.makeApiCallForCounting(apiUrlForCounting, root,
-                // authenticationKey);
-                //                String report =
-                // CountingLinesClient.makeApiCallForGeneratingReport(apiUrlForGeneratingReport, stats1);
+                LinkedHashMap<String, String> repoDetails = extractRepoDetails(build, listener);
+                root = repoDetails.get("root");
+                encodedRoot = UriComponentsBuilder.fromHttpUrl(root).build().toUriString();
+                versionControl = repoDetails.get("versionControl");
+                branchName = repoDetails.get("branchName");
+                authenticationKey = repoDetails.get("authenticationKey");
                 HttpURLConnection connectionForCountingLines = null, connectionForGeneratingReport = null;
                 if (versionControl.equalsIgnoreCase("github")) {
 
-                    GitHubRepoClass gitHubRepo = new GitHubRepoClass(root, authenticationKeyForGitHub, branchName);
+                    GitHubRepoClass gitHubRepo = new GitHubRepoClass(encodedRoot, authenticationKey, branchName);
                     connectionForCountingLines = gitHubRepo.urlConnectionForCountingLines(localhostUrlForCounting);
 
                     connectionForGeneratingReport =
                             gitHubRepo.connectionForGeneratingReport(localhostUrlForGeneratingReport);
 
                 } else if (versionControl.equalsIgnoreCase("gitlab")) {
-                    GitlabRepoClass gitlabRepo = new GitlabRepoClass(root, authenticationKeyForGitLab, branchName);
+                    GitlabRepoClass gitlabRepo = new GitlabRepoClass(encodedRoot, authenticationKey, branchName);
                     connectionForCountingLines = gitlabRepo.urlConnectionForCountingLines(localhostUrlForCounting);
 
                     connectionForGeneratingReport =
                             gitlabRepo.connectionForGeneratingReport(localhostUrlForGeneratingReport);
+                } else if (versionControl.equalsIgnoreCase("svn")) {
+                    System.out.println("Yayy you are inside svn repository");
+                } else {
+                    System.out.println("Wrong Version Control Used:" + versionControl);
+                    return false;
                 }
 
                 CompletableFuture<ProjectStats> statisticsOfCountingLines =
@@ -124,7 +110,6 @@ public class ProjectStatsBuildWrapper extends BuildWrapper {
                 } catch (ExecutionException e) {
                     throw new RuntimeException(e);
                 }
-
                 //                CompletableFuture<ProjectStats> stats2 =
                 // CountingLinesClient.makeAsyncApiCallForCounting(
                 //                        versionControl, apiUrlForCounting, root, authenticationKey, branchName, 100L);
@@ -165,6 +150,10 @@ public class ProjectStatsBuildWrapper extends BuildWrapper {
 
         @Override
         public boolean isApplicable(AbstractProject<?, ?> item) {
+//            The isApplicable method helps Jenkins decide whether a certain type of job
+//            (e.g., Freestyle project, Pipeline, Maven project)
+//            should allow the user to configure an instance of the extension point provided by your plugin.
+//            If the method returns false, your extension point won't be available for configuration in that specific type of job.
             return true;
         }
 
@@ -175,16 +164,46 @@ public class ProjectStatsBuildWrapper extends BuildWrapper {
         }
     }
 
-    public static String extractVersionControlName(String fullRepoURL) {
-        String[] parts = fullRepoURL.split("/");
+    public static LinkedHashMap<String, String> extractRepoDetails(AbstractBuild build, BuildListener listener)
+            throws IOException, InterruptedException {
+        EnvVars envVars = build.getEnvironment(listener);
+        String key = build.getProject().getScm().getKey();
+        LinkedHashMap<String, String> repoDetails = new LinkedHashMap<>();
+        String[] parts = key.split(" ");
 
-        for (String part : parts) {
+        if ("git".equalsIgnoreCase(parts[0])) {
+            extractGitRepoDetails(parts[1], envVars, repoDetails);
+        } else if ("svn".equalsIgnoreCase(parts[0])) {
+            extractSvnRepoDetails(parts[1], repoDetails);
+        } else {
+            setDefaultRepoDetails(repoDetails);
+        }
+
+        return repoDetails;
+    }
+
+    private static void extractGitRepoDetails(
+            String gitRepoDetails, EnvVars envVars, LinkedHashMap<String, String> repoDetails) {
+        repoDetails.put("branchName", envVars.get("GIT_BRANCH"));
+        repoDetails.put("root", envVars.get("GIT_URL"));
+
+        for (String part : gitRepoDetails.split("/")) {
             if ("github.com".equalsIgnoreCase(part)) {
-                return "github";
+                repoDetails.put("versionControl", "github");
+                repoDetails.put("authenticationKey", "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");
             } else if ("gitlab.com".equalsIgnoreCase(part)) {
-                return "gitlab";
+                repoDetails.put("versionControl", "gitlab");
+                repoDetails.put("authenticationKey", "glpat-n6bxZQDixKNu1u9D4CEW");
             }
         }
-        return "The provided url is wrong. Please check whether the provided url is of Github or Gitlab";
+    }
+
+    private static void extractSvnRepoDetails(String svnRepoDetails, LinkedHashMap<String, String> repoDetails) {
+        repoDetails.put("versionControl", "svn");
+        repoDetails.put("root", svnRepoDetails);
+    }
+
+    private static void setDefaultRepoDetails(LinkedHashMap<String, String> repoDetails) {
+        repoDetails.put("versionControl", null);
     }
 }

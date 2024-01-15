@@ -2,6 +2,7 @@ package com.example.counting.numberoflines.service;
 
 import com.example.counting.numberoflines.DetailsFetcher.GitHubFileFetcher;
 import com.example.counting.numberoflines.DetailsFetcher.GitLabFileFetcher;
+import com.example.counting.numberoflines.DetailsFetcher.SVNFileFetcher;
 import com.example.counting.numberoflines.model.ProjectStats;
 import org.gitlab4j.api.GitLabApi;
 import org.gitlab4j.api.GitLabApiException;
@@ -12,6 +13,7 @@ import org.kohsuke.github.GitHub;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
+import org.tmatesoft.svn.core.SVNException;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -46,6 +48,29 @@ public class CountingLinesService {
 //TODO:Make a list of types which shall be allowed. .cpp, .java, .ts
 
 //        Thread.sleep(10000);
+        for(Integer value:numberOfLines.values()){
+            sum+=value;
+        }
+        numberOfLines.put("Total Number of Lines :",sum);
+        return new ProjectStats(numberOfLines);
+    }
+
+    public static ProjectStats buildStats(@NotNull String versionControl, @NotNull String root,
+                                          @NotNull String username,@NotNull String password, @NotNull String branchName)
+            throws SVNException {
+        // This method takes a path representing the root of the project workspace, iterates through Java files,
+        // counts the number of classes and lines in those files, and returns a ProjectStats object.
+        int sum = 0;
+        if(versionControl.equalsIgnoreCase("svn"))
+        {
+            SVNFileFetcher svnFileFetcher = new SVNFileFetcher();
+            svnFileFetcher.authenticate(root,username,password);
+
+//            GitHub github = gitHubFileFetcher.authenticate(key);
+//            GHRepository repo = gitHubFileFetcher.repo(github,root);
+//            numberOfLines = gitHubFileFetcher.numberOfLines(repo);
+        }
+
         for(Integer value:numberOfLines.values()){
             sum+=value;
         }

@@ -52,6 +52,12 @@
 			<version>20231013</version>
 		</dependency>
 
+		<dependency>
+			<groupId>org.tmatesoft.svnkit</groupId>
+			<artifactId>svnkit</artifactId>
+			<version>1.10.11</version>
+		</dependency>
+
 	</dependencies>
 
 	<build>

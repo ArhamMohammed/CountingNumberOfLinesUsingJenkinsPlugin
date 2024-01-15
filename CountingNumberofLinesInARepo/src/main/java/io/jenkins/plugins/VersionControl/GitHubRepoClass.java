@@ -6,15 +6,10 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 
 public class GitHubRepoClass extends BaseRepoClass {
-    //    String owner, repoName;
     String branchName;
 
     public GitHubRepoClass(String fullRepoURL, String key, String branchName) {
         super(fullRepoURL, key);
-
-        //        String[] parts = fullRepoURL.split("/");
-        //        owner = parts[parts.length - 2];
-        //        repoName = parts[parts.length - 1];
         versionControl = "github";
         this.branchName = branchName;
     }

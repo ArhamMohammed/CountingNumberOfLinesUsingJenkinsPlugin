@@ -57,13 +57,9 @@ public class CountingLinesClient {
 
         URL url = new URL(urlPassed);
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-        // Set request method to POST
         connection.setRequestMethod("POST");
-
-        // Set content type to JSON
         connection.setRequestProperty("Content-Type", "application/json");
         connection.setRequestProperty("Accept", "*/*");
-        // Enable output
         connection.setDoOutput(true);
 
         try (OutputStream os = connection.getOutputStream()) {
@@ -148,34 +144,17 @@ public class CountingLinesClient {
             return null;
         });
     }
-
     public static CompletableFuture<String> makeAsyncApiCallForGeneratingReport(
             HttpURLConnection connectionForGeneratingReport, ProjectStats pj) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 ObjectMapper objectMapper = new ObjectMapper();
                 String projectStatsJson = objectMapper.writeValueAsString(pj);
-
-                //                URL url = new URL(urlPassed);
-                //                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-                //
-                //                connection.setRequestMethod("POST");
-                //                connection.setRequestProperty("Content-Type", "application/json");
-                //                connection.setRequestProperty("Accept", "*/*");
-                //                connection.setDoOutput(true);
-                //                UrlConnectionForGeneratingReport generateReport = new
-                // UrlConnectionForGeneratingReport();
-                //                HttpURLConnection connection =
-                // generateReport.connectionForGeneratingReport(urlPassed);
-
                 try (OutputStream os = connectionForGeneratingReport.getOutputStream()) {
                     byte[] input = projectStatsJson.getBytes(StandardCharsets.UTF_8);
                     os.write(input, 0, input.length);
                 }
-
                 int response = connectionForGeneratingReport.getResponseCode();
-                //                System.out.println("Response Code for generating report: " + response);
-
                 if (response == HttpURLConnection.HTTP_OK) {
                     StringBuilder sb = new StringBuilder();
                     try (BufferedReader reader = new BufferedReader(new InputStreamReader(
@@ -185,7 +164,6 @@ public class CountingLinesClient {
                             sb.append(line);
                         }
                     }
-                    //                    Thread.sleep(5000);
                     return sb.toString();
                 } else {
                     return "Error sending a request for generating report";

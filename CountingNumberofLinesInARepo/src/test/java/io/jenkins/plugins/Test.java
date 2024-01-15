@@ -10,9 +10,10 @@ import java.util.concurrent.ExecutionException;
 public class Test {
     public static void main(String args[]) throws InterruptedException, IOException {
         final String localhostUrlForCounting = "http://localhost:9091/counting";
+        final String localhostUrlForCountingForSVN = "http://localhost:9091/countingForSVN";
 
         final String fullRepoURLForGithub = "https://github.com/ArhamMohammed/CountingNumberOfLinesUsingJenkinsPlugin";
-        final String authenticationKeyForGitHub = "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";
+        final String authenticationKeyForGitHub = "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";
         final String branchNameForGitHub = "origin/master";
         final String apiUrlForGeneratingReport = "http://localhost:9091/generateReport";
 
@@ -26,21 +27,7 @@ public class Test {
         final String fullRepoURLForGitlab = "https://gitlab.com/ArhamWissen/countingnumberoflines";
         final String branchNameForGitLab = "origin/main";
 
-        //        ProjectStats countingLinesOutput = CountingLinesClient.makeApiCallForCounting(
-        //                apiUrlForCounting, rootParameterValueForCounting, authenticationKey);
-        //        String generatingReport =
-        //                CountingLinesClient.makeApiCallForGeneratingReport(apiUrlForGeneratingReport,
-        // countingLinesOutput);
-        //        System.out.println(generatingReport);
-
-        //        System.out.println("Started counting future 1 at " + java.time.LocalTime.now());
-        //        CompletableFuture<ProjectStats> countingFuture1 = CountingLinesClient.makeAsyncApiCallForCounting(
-        //                versionControlGitHub,
-        //                apiUrlForCounting,
-        //                rootParameterValueForCountingGitHub,
-        //                authenticationKeyForGitHub,
-        //                branchNameForGitHub,
-        //                0L);
+        final String fullRepoURLForSVN = "https://eu-subversion.assembla.com/svn/wissen%5ETest_SVN.Mir_Test/";
 
         GitHubRepoClass gitHubRepo =
                 new GitHubRepoClass(fullRepoURLForGithub, authenticationKeyForGitHub, branchNameForGitHub);
@@ -62,16 +49,9 @@ public class Test {
         //        System.out.println("Started counting future 2 at " + java.time.LocalTime.now());
         //        CompletableFuture<ProjectStats> countingFuture2 = CountingLinesClient.makeAsyncApiCallForCounting(
         //                apiUrlForCounting, rootParameterValueForCounting, authenticationKey, 100L);
-
         //        countingFuture2.join();
-
         //        ProjectStats pj2 = countingFuture2.join();
-        //        System.out.println("Ended counting future2 at " + java.time.LocalTime.now());
         //        ProjectStats pj1 = countingFuture1.join();
-        //        System.out.println("Ended counting future1 at "+ java.time.LocalTime.now());
-
-        //        System.out.println("PJ2 " + pj2.getNumberOfLines());
-        //        System.out.println("PJ1 "+pj1.getNumberOfLines());
         //        countingFuture1.join();
         countingFutureForGitHub
                 .thenCompose(pj -> CountingLinesClient.makeAsyncApiCallForGeneratingReport(
