@@ -7,6 +7,12 @@
     <artifactId>sonar-aggregator</artifactId>
     <version>1.0.0</version>
     <packaging>pom</packaging>
-
+	
+	    <modules>
+        <module>CountingNumberofLinesInARepo/pom.xml</module>
+        <module>Spring_NumberofLines/pom.xml</module>
+        <module>demo-plugin-arham/pom.xml</module>
+        <module>demp-HelloWorld-Plugin/pom.xml</module>
+    </modules>
 
 </project>
