@@ -14,36 +14,4 @@
         <module>demo-plugin-arham/pom.xml</module>
         <module>demp-HelloWorld-Plugin/pom.xml</module>
     </modules>
-	
-	<!-- Add this configuration to your pom.xml file -->
-<build>
-    <plugins>
-        <plugin>
-            <groupId>com.diffplug.spotless</groupId>
-            <artifactId>spotless-maven-plugin</artifactId>
-            <version>5.15.1</version> <!-- Use the latest version -->
-            <executions>
-                <execution>
-                    <goals>
-                        <goal>apply</goal>
-                    </goals>
-                </execution>
-            </executions>
-            <configuration>
-                <target>
-                    <!-- Define the files or directories to format -->
-                    <file>$CountingNumberofLinesInARepo/src/main/java/io/jenkins/plugins/BaseRepository/*.java</file>
-                    <file>$CountingNumberofLinesInARepo/src/main/java/io/jenkins/plugins/VersionControl/*.java</file>
-                    <file>$CountingNumberofLinesInARepo/src/main/java/io/jenkins/plugins/*.java</file>
-                    <file>$Spring_NumberofLines/null/*.java</file>
-                    <file>$Spring_NumberofLines/src/main/java/com/example/counting/numberoflines/DetailsFetcher/*.java</file>
-                    <file>$Spring_NumberofLines/src/main/java/com/example/counting/numberoflines/controller/*.java</file>
-                    <!-- Add more files or directories if needed -->
-                </target>
-                <!-- Define formatting rules here if needed -->
-            </configuration>
-        </plugin>
-    </plugins>
-</build>
-
 </project>
