@@ -61,17 +61,6 @@
 
   </dependencies>
 
-  <build>
-    <plugins>
-      <plugin>
-        <groupId>org.sonarsource.scanner.maven</groupId>
-        <artifactId>sonar-maven-plugin</artifactId>
-        <version>3.9.0.2155</version> <!-- Use the latest version -->
-      </plugin>
-    </plugins>
-  </build>
-
-
   <repositories>
     <repository>
       <id>repo.jenkins-ci.org</id>
@@ -84,4 +73,15 @@
       <url>https://repo.jenkins-ci.org/public/</url>
     </pluginRepository>
   </pluginRepositories>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.sonarsource.scanner.maven</groupId>
+        <artifactId>sonar-maven-plugin</artifactId>
+        <version>3.9.0.2155</version>
+        <!-- Use the latest version -->
+      </plugin>
+    </plugins>
+  </build>
 </project>
