@@ -1,21 +1,18 @@
-<!-- my-project/pom.xml -->
-
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.example</groupId>
-    <artifactId>my-project</artifactId>
+    <artifactId>sonar-aggregator</artifactId>
     <version>1.0.0</version>
     <packaging>pom</packaging>
 
     <modules>
-        <module>CountingNumberofLinesInARepo</module>
-        <module>demo-plugin-arham</module>
-        <module>demp-HelloWorld-Plugin</module>
-        <module>Spring_NumberofLines</module>
+        <module>CountingNumberofLinesInARepo/pom.xml</module>
+        <module>Spring_NumberofLines/pom.xml</module>
+        <module>demo-plugin-arham/pom.xml</module>
+        <module>demp-HelloWorld-Plugin/pom.xml</module>
     </modules>
-
 
 </project>
