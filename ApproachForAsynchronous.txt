@@ -7,6 +7,13 @@ Specifying callback with 3 methods,
 3. thenRun()    : Any action needs to be done when the completable future is done without accessing the result. Use this.
 4. thenCompose(): method is used to chain two asynchronous computations where the result of the first computation,is passed as an input to the second computation.
 5. join()       : method is used to obtain the result. It WAITS for the computation to complete and returns the result.
+6. get()		: this method is also used to obtain the result. It WAITS for the computation to complete and returns the result.
+
+Diff between get() and join():
+The join() method throws an unchecked exception if the future does not complete normally,
+while the get() method blocks until the future is completed or throws a checked exception. 
+This means that the join() method is more suitable for use in situations where you are sure that the future will complete normally, 
+while the get() method is more suitable for use in situations where you need to handle the possibility of the future not completing normally.
 
 We can assign a thread from the threadpoolexecutor for the specific future task and move ahead with our execution.
 runAsync(): 

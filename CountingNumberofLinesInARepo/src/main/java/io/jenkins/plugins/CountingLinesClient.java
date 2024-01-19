@@ -2,12 +2,9 @@ package io.jenkins.plugins;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
 import org.apache.commons.io.IOUtils;
@@ -16,74 +13,6 @@ import org.slf4j.LoggerFactory;
 
 public class CountingLinesClient {
     private static Logger logger = LoggerFactory.getLogger(CountingLinesClient.class);
-
-    //    you typically provide the name of the class for which you are creating the logger.
-    //    in the getLogger() method for best logging practices.
-    public static ProjectStats makeApiCallForCounting(String urlPassed, String root, String key) throws IOException {
-        URL url = new URL(urlPassed + "?root=" + root + "&key=" + key);
-        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-        connection.setRequestMethod("GET");
-
-        int response = connection.getResponseCode();
-        System.out.println("Response Code: " + response);
-
-        ProjectStats pj = null;
-        if (response == HttpURLConnection.HTTP_OK) {
-            StringBuilder sb = new StringBuilder();
-            try (BufferedReader reader =
-                    new BufferedReader(new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8))) {
-                // getInputStream() triggers the execution of the HTTP request if it hasn't already been executed,
-                // and it returns the input stream for reading the response body.
-                // The .execute() method is a more explicit way to execute the request and
-                // obtain the response code but is not required when using getInputStream().
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    sb.append(line);
-                }
-            }
-            String jsonResponse = sb.toString();
-            ObjectMapper objectMapper = new ObjectMapper();
-
-            pj = objectMapper.readValue(jsonResponse, ProjectStats.class);
-        } else {
-            System.out.println("There has been error");
-        }
-        return pj;
-    }
-
-    public static String makeApiCallForGeneratingReport(String urlPassed, ProjectStats pj) throws IOException {
-        ObjectMapper objectMapper = new ObjectMapper();
-        String projectStatsJson = objectMapper.writeValueAsString(pj);
-
-        URL url = new URL(urlPassed);
-        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-        connection.setRequestMethod("POST");
-        connection.setRequestProperty("Content-Type", "application/json");
-        connection.setRequestProperty("Accept", "*/*");
-        connection.setDoOutput(true);
-
-        try (OutputStream os = connection.getOutputStream()) {
-            byte[] input = projectStatsJson.getBytes(StandardCharsets.UTF_8);
-            os.write(input, 0, input.length);
-        }
-
-        int response = connection.getResponseCode();
-        System.out.println("Response Code: " + response);
-
-        if (response == HttpURLConnection.HTTP_OK) {
-            StringBuilder sb = new StringBuilder();
-            try (BufferedReader reader =
-                    new BufferedReader(new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    sb.append(line);
-                }
-            }
-            return sb.toString();
-        } else {
-            return "Error sending a request";
-        }
-    }
 
     public static CompletableFuture<ProjectStats> makeAsyncApiCallForCounting(
             HttpURLConnection connectionForCountingLines) {
@@ -134,6 +63,7 @@ public class CountingLinesClient {
                 //                }
                 //                Thread.sleep(delay);
                 //                System.out.println(pj.getNumberOfLines());
+                System.out.println("The value after counting the lines = " + pj.getNumberOfLines());
                 return pj;
             } catch (MalformedURLException e) {
                 System.out.println("Protocol is missing from the URL ");
@@ -142,35 +72,6 @@ public class CountingLinesClient {
                 System.out.println("The exception occurred is :" + e);
             }
             return null;
-        });
-    }
-    public static CompletableFuture<String> makeAsyncApiCallForGeneratingReport(
-            HttpURLConnection connectionForGeneratingReport, ProjectStats pj) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                ObjectMapper objectMapper = new ObjectMapper();
-                String projectStatsJson = objectMapper.writeValueAsString(pj);
-                try (OutputStream os = connectionForGeneratingReport.getOutputStream()) {
-                    byte[] input = projectStatsJson.getBytes(StandardCharsets.UTF_8);
-                    os.write(input, 0, input.length);
-                }
-                int response = connectionForGeneratingReport.getResponseCode();
-                if (response == HttpURLConnection.HTTP_OK) {
-                    StringBuilder sb = new StringBuilder();
-                    try (BufferedReader reader = new BufferedReader(new InputStreamReader(
-                            connectionForGeneratingReport.getInputStream(), StandardCharsets.UTF_8))) {
-                        String line;
-                        while ((line = reader.readLine()) != null) {
-                            sb.append(line);
-                        }
-                    }
-                    return sb.toString();
-                } else {
-                    return "Error sending a request for generating report";
-                }
-            } catch (Exception e) {
-                throw new RuntimeException("Failed to make API call for counting", e);
-            }
         });
     }
 }

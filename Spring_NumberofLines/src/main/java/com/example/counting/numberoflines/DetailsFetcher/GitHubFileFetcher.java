@@ -36,10 +36,8 @@ public class GitHubFileFetcher {
     public LinkedHashMap<String, Integer> numberOfLines(GHRepository repo) throws IOException, InterruptedException {
         LinkedHashMap<String, Integer> numberOfLines = new LinkedHashMap<>();
         ExecutorService executorService = Executors.newFixedThreadPool(10);
-        System.out.println("Before finding java files: "+java.time.LocalTime.now());
 
         List<String> javaFiles = findJavaFiles(repo);
-        System.out.println("After finding java files: "+java.time.LocalTime.now());
 
         for (String singleJavaFile : javaFiles) {
             GHContent content = repo.getFileContent(singleJavaFile);

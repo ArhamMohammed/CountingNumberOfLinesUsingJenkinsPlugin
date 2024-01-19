@@ -10,8 +10,11 @@ import hudson.tasks.BuildWrapper;
 import hudson.tasks.BuildWrapperDescriptor;
 import io.jenkins.plugins.VersionControl.GitHubRepoClass;
 import io.jenkins.plugins.VersionControl.GitlabRepoClass;
+import io.jenkins.plugins.VersionControl.SvnRepoClass;
 import java.io.*;
 import java.net.HttpURLConnection;
+import java.net.URLEncoder;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.concurrent.CompletableFuture;
@@ -21,9 +24,9 @@ import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.web.util.UriComponentsBuilder;
 
 public class ProjectStatsBuildWrapper extends BuildWrapper {
+    public static final String PROJECT_NAME_VAR = "$PROJECT_NAME$";
     // This class extends BuildWrapper, which is part of the Jenkins extension
     // points for build process customization.
     //    static:
@@ -43,22 +46,26 @@ public class ProjectStatsBuildWrapper extends BuildWrapper {
     public static final String REPORT_TEMPLATE_PATH = "/stats.html";
 
     static final String localhostUrlForCounting = "http://localhost:9091/counting";
-    static final String localhostUrlForCountingForSVN = "http://localhost:9091/countingForSVN";
+    static final String localhostUrlForCountingSvnRepository = "http://localhost:9091/countingForSVN";
+    final String relativePath = "CloneCOde\\SVN_Assembla";
+    final String localDirectoryUrlForSVNWithoutEncoding =
+            System.getProperty("user.dir") + File.separator + relativePath;
+    final String localDirectoryUrlForSVNWithEncoding =
+            URLEncoder.encode(localDirectoryUrlForSVNWithoutEncoding, StandardCharsets.UTF_8.toString());
     static final String localhostUrlForGeneratingReport = "http://localhost:9091/generateReport";
     String versionControl = StringUtils.EMPTY;
     String authenticationKey = StringUtils.EMPTY;
     String root = StringUtils.EMPTY;
     String branchName = StringUtils.EMPTY;
     String encodedRoot = StringUtils.EMPTY;
+
     @DataBoundConstructor
-    public ProjectStatsBuildWrapper() {}
+    public ProjectStatsBuildWrapper() throws UnsupportedEncodingException {}
     // This is the constructor for the class. It is annotated with @DataBoundConstructor,
     // indicating that it should be used for data binding during the configuration of the Jenkins job.
 
     @Override
-    public Environment setUp(AbstractBuild build, final Launcher launcher, BuildListener listener)
-            throws IOException, InterruptedException {
-        //        versionControl = extractVersionControlName(envVars);
+    public Environment setUp(AbstractBuild build, final Launcher launcher, BuildListener listener) {
 
         // This method is part of the BuildWrapper extension point. It sets up the environment for the build.
         // Inside the setUp method, an anonymous subclass of Environment is created with a customized tearDown method.
@@ -75,51 +82,66 @@ public class ProjectStatsBuildWrapper extends BuildWrapper {
                 // and saving it to the artifacts' directory.
                 LinkedHashMap<String, String> repoDetails = extractRepoDetails(build, listener);
                 root = repoDetails.get("root");
-                encodedRoot = UriComponentsBuilder.fromHttpUrl(root).build().toUriString();
+                encodedRoot = URLEncoder.encode(root, StandardCharsets.UTF_8.toString());
                 versionControl = repoDetails.get("versionControl");
                 branchName = repoDetails.get("branchName");
                 authenticationKey = repoDetails.get("authenticationKey");
-                HttpURLConnection connectionForCountingLines = null, connectionForGeneratingReport = null;
+                HttpURLConnection connectionForCountingLines;
+                CompletableFuture<HttpResponse<String>> report = null;
                 if (versionControl.equalsIgnoreCase("github")) {
 
                     GitHubRepoClass gitHubRepo = new GitHubRepoClass(encodedRoot, authenticationKey, branchName);
                     connectionForCountingLines = gitHubRepo.urlConnectionForCountingLines(localhostUrlForCounting);
 
-                    connectionForGeneratingReport =
-                            gitHubRepo.connectionForGeneratingReport(localhostUrlForGeneratingReport);
+                    //                    if (connectionForCountingLines.getResponseCode() == HttpURLConnection.HTTP_OK)
+                    // {
+                    //                        logger.info("Connection Successfull for counting lines");
+                    //                    } else {
+                    //                        logger.error("Something wrong while connecting  for counting lines");
+                    //                    }
+                    CompletableFuture<ProjectStats> statisticsOfCountingLines =
+                            CountingLinesClient.makeAsyncApiCallForCounting(connectionForCountingLines);
+                    try {
+                        report = gitHubRepo.generatingReport(
+                                localhostUrlForGeneratingReport, statisticsOfCountingLines.get());
+                    } catch (ExecutionException e) {
+                        throw new RuntimeException(e);
+                    }
 
                 } else if (versionControl.equalsIgnoreCase("gitlab")) {
                     GitlabRepoClass gitlabRepo = new GitlabRepoClass(encodedRoot, authenticationKey, branchName);
                     connectionForCountingLines = gitlabRepo.urlConnectionForCountingLines(localhostUrlForCounting);
 
-                    connectionForGeneratingReport =
-                            gitlabRepo.connectionForGeneratingReport(localhostUrlForGeneratingReport);
+                    CompletableFuture<ProjectStats> statisticsOfCountingLines =
+                            CountingLinesClient.makeAsyncApiCallForCounting(connectionForCountingLines);
+                    try {
+                        report = gitlabRepo.generatingReport(
+                                localhostUrlForGeneratingReport, statisticsOfCountingLines.get());
+                    } catch (ExecutionException e) {
+                        throw new RuntimeException(e);
+                    }
                 } else if (versionControl.equalsIgnoreCase("svn")) {
-                    System.out.println("Yayy you are inside svn repository");
+                    SvnRepoClass svnRepoClass = new SvnRepoClass(encodedRoot, localDirectoryUrlForSVNWithEncoding);
+                    connectionForCountingLines =
+                            svnRepoClass.urlConnectionForCountingLines(localhostUrlForCountingSvnRepository);
+                    if (connectionForCountingLines.getResponseCode() == HttpURLConnection.HTTP_OK) {
+                        logger.info("Connection Successfull for counting lines");
+                    } else {
+                        logger.error("Something wrong while connecting for counting lines");
+                    }
+                    CompletableFuture<ProjectStats> statisticsOfCountingLines =
+                            CountingLinesClient.makeAsyncApiCallForCounting(connectionForCountingLines);
+                    try {
+                        report = svnRepoClass.generatingReport(
+                                localhostUrlForGeneratingReport, statisticsOfCountingLines.get());
+                    } catch (ExecutionException e) {
+                        throw new RuntimeException(e);
+                    }
+
                 } else {
                     System.out.println("Wrong Version Control Used:" + versionControl);
                     return false;
                 }
-
-                CompletableFuture<ProjectStats> statisticsOfCountingLines =
-                        CountingLinesClient.makeAsyncApiCallForCounting(connectionForCountingLines);
-                CompletableFuture<String> report, report2 = null;
-                try {
-                    report = CountingLinesClient.makeAsyncApiCallForGeneratingReport(
-                            connectionForGeneratingReport, statisticsOfCountingLines.get());
-                } catch (ExecutionException e) {
-                    throw new RuntimeException(e);
-                }
-                //                CompletableFuture<ProjectStats> stats2 =
-                // CountingLinesClient.makeAsyncApiCallForCounting(
-                //                        versionControl, apiUrlForCounting, root, authenticationKey, branchName, 100L);
-                //                try {
-                //                    report2 = CountingLinesClient.makeAsyncApiCallForGeneratingReport(
-                //                            apiUrlForGeneratingReport, stats2.get());
-                //                } catch (ExecutionException e) {
-                //                    throw new RuntimeException(e);
-                //                }
-
                 File artifactsDir = build.getArtifactsDir();
                 if (!artifactsDir.isDirectory()) {
                     boolean success = artifactsDir.mkdirs();
@@ -131,10 +153,11 @@ public class ProjectStatsBuildWrapper extends BuildWrapper {
                 String path = artifactsDir.getCanonicalPath() + REPORT_TEMPLATE_PATH;
                 try (BufferedWriter writer = new BufferedWriter(
                         new OutputStreamWriter(new FileOutputStream(path), StandardCharsets.UTF_8))) {
-                    writer.write(report.join());
-                    //                    writer.write(report2.join());
+                    writer.write(report.get().body());
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
-                //                Thread.sleep(5000);
+                Thread.sleep(60 * 1000);
                 return super.tearDown(build, listener);
             }
         };
@@ -150,10 +173,11 @@ public class ProjectStatsBuildWrapper extends BuildWrapper {
 
         @Override
         public boolean isApplicable(AbstractProject<?, ?> item) {
-//            The isApplicable method helps Jenkins decide whether a certain type of job
-//            (e.g., Freestyle project, Pipeline, Maven project)
-//            should allow the user to configure an instance of the extension point provided by your plugin.
-//            If the method returns false, your extension point won't be available for configuration in that specific type of job.
+            //            The isApplicable method helps Jenkins decide whether a certain type of job
+            //            (e.g., Freestyle project, Pipeline, Maven project)
+            //            should allow the user to configure an instance of the extension point provided by your plugin.
+            //            If the method returns false, your extension point won't be available for configuration in that
+            // specific type of job.
             return true;
         }
 
@@ -190,7 +214,7 @@ public class ProjectStatsBuildWrapper extends BuildWrapper {
         for (String part : gitRepoDetails.split("/")) {
             if ("github.com".equalsIgnoreCase(part)) {
                 repoDetails.put("versionControl", "github");
-                repoDetails.put("authenticationKey", "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");
+                repoDetails.put("authenticationKey", "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");
             } else if ("gitlab.com".equalsIgnoreCase(part)) {
                 repoDetails.put("versionControl", "gitlab");
                 repoDetails.put("authenticationKey", "glpat-n6bxZQDixKNu1u9D4CEW");

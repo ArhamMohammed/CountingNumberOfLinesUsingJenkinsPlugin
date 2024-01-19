@@ -1,10 +1,10 @@
-package io.jenkins.plugins;
+// package io.jenkins.plugins;
 //
 // import java.io.*;
 // import java.nio.charset.StandardCharsets;
 // import java.util.*;
 //
-public class CountingLinesUtilClass {}
+// public class CountingLinesUtilClass {
 //    public static ProjectStats buildStats(String root) {
 //        // This method takes a path representing the root of the project workspace, iterates through Java files,
 //        // counts the number of classes and lines in those files, and returns a ProjectStats object.
@@ -90,7 +90,7 @@ public class CountingLinesUtilClass {}
 //        return lines;
 //    }
 //
-//    public static String generateReport(String projectName, ProjectStats stats) throws IOException {
+//    public static String generateReport(String projectName, ProjectStats stats) {
 //        // This method generates an HTML report based on a template. It reads the template from the classpath,
 //        // replaces placeholders with actual values, and returns the resulting content as a string.
 //
@@ -99,7 +99,7 @@ public class CountingLinesUtilClass {}
 //        ByteArrayOutputStream bOut = new ByteArrayOutputStream();
 //        // ProjectStatsBuildWrapper.class.getResourceAsStream(REPORT_TEMPLATE_PATH) obtains an input stream
 //        // for reading the specified resource (REPORT_TEMPLATE_PATH) associated with the class
-// ProjectStatsBuildWrapper.
+//        // ProjectStatsBuildWrapper.
 //        try (InputStream in =
 //                ProjectStatsBuildWrapper.class.getResourceAsStream(ProjectStatsBuildWrapper.REPORT_TEMPLATE_PATH)) {
 //            // A byte array (buffer) of size 1024 is created to read data from the input stream in chunks.
@@ -112,6 +112,8 @@ public class CountingLinesUtilClass {}
 //            while ((read = in.read(buffer)) >= 0) {
 //                bOut.write(buffer, 0, read);
 //            }
+//        } catch (IOException e) {
+//            throw new RuntimeException(e);
 //        }
 //        String content = new String(bOut.toByteArray(), StandardCharsets.UTF_8);
 //        // StringBuilder provides a mutable sequence of characters and is designed for
