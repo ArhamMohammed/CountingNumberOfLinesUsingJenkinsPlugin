@@ -32,14 +32,14 @@ public class LineCountController {
         return CountingLinesService.buildStats(versionControl,root,localDirectoryUrl);
     }
     @PostMapping("/generateReport")
-    public String generateReport(@RequestBody ProjectStats pj) throws IOException {
+    public String generateReport(@RequestBody ProjectStats pj) {
         if(pj != null)
             return CountingLinesService.generateReport("ArhamProject",pj);
         else
             return "The value of PJ is null";
     }
 
-    @RequestMapping("/hello")
+    @GetMapping
     public String hello(){
         return "Hello World";
     }

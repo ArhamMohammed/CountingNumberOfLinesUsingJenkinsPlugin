@@ -11,8 +11,6 @@
 	    <modules>
         <module>CountingNumberofLinesInARepo/pom.xml</module>
         <module>Spring_NumberofLines/pom.xml</module>
-        <module>demo-plugin-arham/pom.xml</module>
-        <module>demp-HelloWorld-Plugin/pom.xml</module>
     </modules>
 	
 	<build>

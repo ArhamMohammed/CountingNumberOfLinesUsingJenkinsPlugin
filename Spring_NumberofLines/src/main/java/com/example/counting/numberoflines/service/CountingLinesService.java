@@ -1,8 +1,10 @@
 package com.example.counting.numberoflines.service;
 
-import com.example.counting.numberoflines.DetailsFetcher.GitHubFileFetcher;
-import com.example.counting.numberoflines.DetailsFetcher.GitLabFileFetcher;
-import com.example.counting.numberoflines.DetailsFetcher.SVNFileFetcher;
+
+import com.example.counting.numberoflines.methods.GetValuesFromConfigFile;
+import com.example.counting.numberoflines.detailsfetcher.GitHubFileFetcher;
+import com.example.counting.numberoflines.detailsfetcher.GitLabFileFetcher;
+import com.example.counting.numberoflines.detailsfetcher.SVNFileFetcher;
 import com.example.counting.numberoflines.model.ProjectStats;
 import org.gitlab4j.api.GitLabApi;
 import org.gitlab4j.api.GitLabApiException;
@@ -10,6 +12,8 @@ import org.gitlab4j.api.models.Project;
 import org.jetbrains.annotations.NotNull;
 import org.kohsuke.github.GHRepository;
 import org.kohsuke.github.GitHub;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
@@ -21,8 +25,11 @@ import java.util.*;
 
 @Service
 public class CountingLinesService {
-    public static final String REPORT_TEMPLATE_PATH = "/stats.html";
-    public static LinkedHashMap<String, Integer> numberOfLines = new LinkedHashMap<>();
+
+    private CountingLinesService(){}
+    private static final Logger logger = LoggerFactory.getLogger(CountingLinesService.class);
+    static GetValuesFromConfigFile getValuesFromConfigFile = new GetValuesFromConfigFile();
+    protected static Map<String, Integer> numberOfLines = new LinkedHashMap<>();
     public static ProjectStats buildStats(@NotNull String versionControl, @NotNull String root,
                                           @NotNull String key, @NotNull String branchName)
             throws IOException, InterruptedException, GitLabApiException {
@@ -44,8 +51,6 @@ public class CountingLinesService {
 
             numberOfLines = gitLabFileFetcher.fileAndLines(gitLabApi,project,"/", branchName);
         }
-//TODO: Handle null cases, handle error cases, handle error token cases.
-//TODO:Make a list of types which shall be allowed. .cpp, .java, .ts
 
         for(Integer value:numberOfLines.values()){
             sum+=value;
@@ -76,7 +81,7 @@ public class CountingLinesService {
     }
 
 
-    public static String generateReport(String projectName, ProjectStats stats) throws IOException {
+    public static String generateReport(String projectName, ProjectStats stats) {
         try {
             // This method generates an HTML report based on a template. It reads the template from the classpath,
             // replaces placeholders with actual values, and returns the resulting content as a string.
@@ -86,7 +91,7 @@ public class CountingLinesService {
             ByteArrayOutputStream bOut = new ByteArrayOutputStream();
             // ProjectStatsBuildWrapper.class.getResourceAsStream(REPORT_TEMPLATE_PATH) obtains an input stream
             // for reading the specified resource (REPORT_TEMPLATE_PATH) associated with the class ProjectStatsBuildWrapper.
-            Resource resource = new ClassPathResource(REPORT_TEMPLATE_PATH);
+            Resource resource = new ClassPathResource(getValuesFromConfigFile.getReportTemplatePathFromConfig());
             try (InputStream in = resource.getInputStream()) {
                 // A byte array (buffer) of size 1024 is created to read data from the input stream in chunks.
                 // The read variable stores the number of bytes read in each iteration.
@@ -99,7 +104,7 @@ public class CountingLinesService {
                     bOut.write(buffer, 0, read);
                 }
             }
-            String content = new String(bOut.toByteArray(), StandardCharsets.UTF_8);
+            String content = bOut.toString(StandardCharsets.UTF_8);
             // StringBuilder provides a mutable sequence of characters and is designed for
             // situations where strings are dynamically built or modified.
             // It allows you to efficiently append, insert, or delete characters from a sequence of characters.
@@ -117,8 +122,12 @@ public class CountingLinesService {
             content = content.replace("$ENTRIES$", entriesHtml.toString());
             return content;
         }
+        catch(IllegalArgumentException e){
+            logger.info("The path to fetch the properties from a config file is null. Please check. {}",e.getLocalizedMessage());
+            return null;
+        }
         catch (Exception e){
-            e.printStackTrace();
+            logger.info(getValuesFromConfigFile.getErrorMessageForGeneratingReport(),e);
             return null;
         }
     }

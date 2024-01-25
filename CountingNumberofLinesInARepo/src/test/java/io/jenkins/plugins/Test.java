@@ -1,8 +1,9 @@
 package io.jenkins.plugins;
 
-import io.jenkins.plugins.VersionControl.GitHubRepoClass;
-import io.jenkins.plugins.VersionControl.GitlabRepoClass;
-import io.jenkins.plugins.VersionControl.SvnRepoClass;
+import io.jenkins.plugins.generatereport.GenerateReport;
+import io.jenkins.plugins.versioncontrol.GitHubRepoClass;
+import io.jenkins.plugins.versioncontrol.GitlabRepoClass;
+import io.jenkins.plugins.versioncontrol.SvnRepoClass;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URLEncoder;
@@ -10,13 +11,14 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
+@SuppressWarnings({"java:S2187", "java:S2925", "secrets:S6689", "secrets:S6690"})
 public class Test {
-    public static void main(String args[]) throws IOException, InterruptedException, ExecutionException {
+    public static void main(String args[]) throws IOException, InterruptedException {
         final String localhostUrlForCounting = "http://localhost:9091/counting";
         final String localhostUrlForCountingForSVN = "http://localhost:9091/countingForSVN";
 
         final String fullRepoURLForGithub = "https://github.com/ArhamMohammed/CountingNumberOfLinesUsingJenkinsPlugin";
-        final String authenticationKeyForGitHub = "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";
+        final String authenticationKeyForGitHub = "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";
         final String branchNameForGitHub = "origin/master";
         final String apiUrlForGeneratingReport = "http://localhost:9091/generateReport";
 
@@ -44,7 +46,7 @@ public class Test {
                 gitHubRepo.urlConnectionForCountingLines(localhostUrlForCounting);
         CompletableFuture<ProjectStats> countingFutureForGitHub =
                 CountingLinesClient.makeAsyncApiCallForCounting(countingLinesConnectionForGitHub);
-        //        /* -------------------------------- GitLab ----------------------------- */
+        /* -------------------------------- GitLab ----------------------------- */
         GitlabRepoClass gitlabRepoClass =
                 new GitlabRepoClass(fullRepoURLForGitlab, authenticationKeyForGitLab, branchNameForGitLab);
         HttpURLConnection countingLinesConnectionForGitLab =
@@ -58,10 +60,14 @@ public class Test {
         CompletableFuture<ProjectStats> countingFutureForSvn =
                 CountingLinesClient.makeAsyncApiCallForCounting(countingLinesConnectionForSVN);
 
+        GenerateReport generateReport = new GenerateReport();
+        GetValuesFromConfigFile getValuesFromConfigFile = new GetValuesFromConfigFile();
+
         countingFutureForGitHub
                 .thenCompose(pj -> {
                     try {
-                        return gitHubRepo.generatingReport(apiUrlForGeneratingReport, countingFutureForGitHub.get());
+                        return generateReport.generatingReport(
+                                apiUrlForGeneratingReport, countingFutureForGitHub.get());
                     } catch (InterruptedException | ExecutionException e) {
                         throw new RuntimeException(e);
                     }
@@ -76,7 +82,7 @@ public class Test {
         countingFutureForGitLab
                 .thenCompose(pj -> {
                     try {
-                        return gitlabRepoClass.generatingReport(
+                        return generateReport.generatingReport(
                                 apiUrlForGeneratingReport, countingFutureForGitLab.get());
                     } catch (InterruptedException | ExecutionException e) {
                         throw new RuntimeException(e);
@@ -92,7 +98,7 @@ public class Test {
         countingFutureForSvn
                 .thenCompose(pj -> {
                     try {
-                        return svnRepoClass.generatingReport(apiUrlForGeneratingReport, countingFutureForSvn.get());
+                        return generateReport.generatingReport(apiUrlForGeneratingReport, countingFutureForSvn.get());
                     } catch (InterruptedException | ExecutionException e) {
                         throw new RuntimeException(e);
                     }
@@ -104,17 +110,6 @@ public class Test {
                         System.out.println("Failed to fetch Report");
                     }
                 });
-        //        countingFuture2
-        //                .thenCompose(
-        //                        pj ->
-        // CountingLinesClient.makeAsyncApiCallForGeneratingReport(apiUrlForGeneratingReport, pj))
-        //                .thenAccept(report -> {
-        //                    if (report != null) {
-        //                        System.out.println("Received Report for second: " + report);
-        //                    } else {
-        //                        System.out.println("Failed to fetch Report");
-        //                    }
-        //                });
         Thread.sleep(60 * 1000);
     }
 }

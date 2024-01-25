@@ -1,6 +1,6 @@
-package io.jenkins.plugins.VersionControl;
+package io.jenkins.plugins.versioncontrol;
 
-import io.jenkins.plugins.BaseRepository.BaseRepoClass;
+import io.jenkins.plugins.baserepository.BaseRepoClass;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;

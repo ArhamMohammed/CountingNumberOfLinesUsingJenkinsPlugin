@@ -7,9 +7,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 
-public class readContentFromTheFile {
+public class ReadContentFromTheFile {
 
-    public static String readContent(InputStream inputStream) throws IOException {
+    public ReadContentFromTheFile(){
+        // Private constructor to prevent instantiation
+    }
+
+    public String readContent(InputStream inputStream) throws IOException {
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
 //            InputStreamReader: This class is a bridge from byte streams (like InputStream) to character streams
 //            like Reader and its subclasses.

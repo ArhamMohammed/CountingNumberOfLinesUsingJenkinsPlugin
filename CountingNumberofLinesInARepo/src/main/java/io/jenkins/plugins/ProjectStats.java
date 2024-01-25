@@ -1,16 +1,16 @@
 package io.jenkins.plugins;
 
-import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class ProjectStats {
 
-    LinkedHashMap<String, Integer> numberOfLines;
+    Map<String, Integer> numberOfLines;
 
-    public LinkedHashMap<String, Integer> getNumberOfLines() {
+    public Map<String, Integer> getNumberOfLines() {
         return numberOfLines;
     }
 
-    public ProjectStats(LinkedHashMap<String, Integer> numberOfLines) {
+    public ProjectStats(Map<String, Integer> numberOfLines) {
         this.numberOfLines = numberOfLines;
     }
 

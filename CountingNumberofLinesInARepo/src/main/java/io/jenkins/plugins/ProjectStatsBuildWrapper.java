@@ -8,15 +8,18 @@ import hudson.model.AbstractProject;
 import hudson.model.BuildListener;
 import hudson.tasks.BuildWrapper;
 import hudson.tasks.BuildWrapperDescriptor;
-import io.jenkins.plugins.VersionControl.GitHubRepoClass;
-import io.jenkins.plugins.VersionControl.GitlabRepoClass;
-import io.jenkins.plugins.VersionControl.SvnRepoClass;
+import io.jenkins.plugins.exceptions.ReportGenerationException;
+import io.jenkins.plugins.generatereport.GenerateReport;
+import io.jenkins.plugins.versioncontrol.GitHubRepoClass;
+import io.jenkins.plugins.versioncontrol.GitlabRepoClass;
+import io.jenkins.plugins.versioncontrol.SvnRepoClass;
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URLEncoder;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import javax.annotation.Nonnull;
@@ -26,7 +29,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ProjectStatsBuildWrapper extends BuildWrapper {
-    public static final String PROJECT_NAME_VAR = "$PROJECT_NAME$";
     // This class extends BuildWrapper, which is part of the Jenkins extension
     // points for build process customization.
     //    static:
@@ -42,17 +44,25 @@ public class ProjectStatsBuildWrapper extends BuildWrapper {
     //    For methods, final means that the method cannot be overridden by subclasses.
     //    For classes, final means that the class cannot be subclassed (i.e., cannot be extended).
 
-    private static Logger logger = LoggerFactory.getLogger(ProjectStatsBuildWrapper.class);
-    public static final String REPORT_TEMPLATE_PATH = "/stats.html";
+    static Logger logger = LoggerFactory.getLogger(ProjectStatsBuildWrapper.class);
+    private static final String LOCALHOST_URL_FOR_COUNTING = "http://localhost:9091/counting";
+    private static final String LOCALHOST_URL_FOR_COUNTING_SVN_REPOSITORY = "http://localhost:9091/countingForSVN";
+    private static final String LOCALHOST_URL_FOR_GENERATING_REPORT = "http://localhost:9091/generateReport";
+    private static final Long DELAY = 60000L;
 
-    static final String localhostUrlForCounting = "http://localhost:9091/counting";
-    static final String localhostUrlForCountingSvnRepository = "http://localhost:9091/countingForSVN";
-    final String relativePath = "CloneCOde\\SVN_Assembla";
-    final String localDirectoryUrlForSVNWithoutEncoding =
-            System.getProperty("user.dir") + File.separator + relativePath;
-    final String localDirectoryUrlForSVNWithEncoding =
-            URLEncoder.encode(localDirectoryUrlForSVNWithoutEncoding, StandardCharsets.UTF_8.toString());
-    static final String localhostUrlForGeneratingReport = "http://localhost:9091/generateReport";
+    private static final String VERSION_CONTROL_KEY = "versionControl";
+    private static final String AUTHENTICATION_KEY = "authenticationKey";
+    private static final String BRANCH_NAME = "branchName";
+    private static final String ROOT_KEY = "root";
+    private static final String GITHUB = "github";
+    private static final String GITLAB = "gitlab";
+    private static final String SVN = "svn";
+    private static final String GITHUB_KEY = "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";
+    private static final String GITLAB_KEY = "glpat-n6bxZQDixKNu1u9D4CEW";
+    private static final String RELATIVE_PATH = "CloneCOde\\SVN_Assembla";
+    private static final String CONNECTION_SUCCESSFUL_MESSAGE = "Connection Successfully made for counting lines";
+    private static final String CONNECTION_UNSUCCESSFUL_MESSAGE = "Something wrong while connecting for counting lines";
+    String localDirectoryUrlForSvnWithEncoding = encodeUrl();
     String versionControl = StringUtils.EMPTY;
     String authenticationKey = StringUtils.EMPTY;
     String root = StringUtils.EMPTY;
@@ -60,7 +70,11 @@ public class ProjectStatsBuildWrapper extends BuildWrapper {
     String encodedRoot = StringUtils.EMPTY;
 
     @DataBoundConstructor
-    public ProjectStatsBuildWrapper() throws UnsupportedEncodingException {}
+    public ProjectStatsBuildWrapper() {
+        // This constructor is provided to satisfy the data binding requirements of Jenkins.
+        // The actual initialization and setup are performed in the overridden setUp method.
+        // If additional setup is needed, it should be performed in the setUp method instead of this constructor.
+    }
     // This is the constructor for the class. It is annotated with @DataBoundConstructor,
     // indicating that it should be used for data binding during the configuration of the Jenkins job.
 
@@ -80,84 +94,12 @@ public class ProjectStatsBuildWrapper extends BuildWrapper {
                 // This method is called at the end of the build process.
                 // It is responsible for generating project statistics, creating an HTML report,
                 // and saving it to the artifacts' directory.
-                LinkedHashMap<String, String> repoDetails = extractRepoDetails(build, listener);
-                root = repoDetails.get("root");
-                encodedRoot = URLEncoder.encode(root, StandardCharsets.UTF_8.toString());
-                versionControl = repoDetails.get("versionControl");
-                branchName = repoDetails.get("branchName");
-                authenticationKey = repoDetails.get("authenticationKey");
-                HttpURLConnection connectionForCountingLines;
-                CompletableFuture<HttpResponse<String>> report = null;
-                if (versionControl.equalsIgnoreCase("github")) {
-
-                    GitHubRepoClass gitHubRepo = new GitHubRepoClass(encodedRoot, authenticationKey, branchName);
-                    connectionForCountingLines = gitHubRepo.urlConnectionForCountingLines(localhostUrlForCounting);
-
-                    //                    if (connectionForCountingLines.getResponseCode() == HttpURLConnection.HTTP_OK)
-                    // {
-                    //                        logger.info("Connection Successfull for counting lines");
-                    //                    } else {
-                    //                        logger.error("Something wrong while connecting  for counting lines");
-                    //                    }
-                    CompletableFuture<ProjectStats> statisticsOfCountingLines =
-                            CountingLinesClient.makeAsyncApiCallForCounting(connectionForCountingLines);
-                    try {
-                        report = gitHubRepo.generatingReport(
-                                localhostUrlForGeneratingReport, statisticsOfCountingLines.get());
-                    } catch (ExecutionException e) {
-                        throw new RuntimeException(e);
-                    }
-
-                } else if (versionControl.equalsIgnoreCase("gitlab")) {
-                    GitlabRepoClass gitlabRepo = new GitlabRepoClass(encodedRoot, authenticationKey, branchName);
-                    connectionForCountingLines = gitlabRepo.urlConnectionForCountingLines(localhostUrlForCounting);
-
-                    CompletableFuture<ProjectStats> statisticsOfCountingLines =
-                            CountingLinesClient.makeAsyncApiCallForCounting(connectionForCountingLines);
-                    try {
-                        report = gitlabRepo.generatingReport(
-                                localhostUrlForGeneratingReport, statisticsOfCountingLines.get());
-                    } catch (ExecutionException e) {
-                        throw new RuntimeException(e);
-                    }
-                } else if (versionControl.equalsIgnoreCase("svn")) {
-                    SvnRepoClass svnRepoClass = new SvnRepoClass(encodedRoot, localDirectoryUrlForSVNWithEncoding);
-                    connectionForCountingLines =
-                            svnRepoClass.urlConnectionForCountingLines(localhostUrlForCountingSvnRepository);
-                    if (connectionForCountingLines.getResponseCode() == HttpURLConnection.HTTP_OK) {
-                        logger.info("Connection Successfull for counting lines");
-                    } else {
-                        logger.error("Something wrong while connecting for counting lines");
-                    }
-                    CompletableFuture<ProjectStats> statisticsOfCountingLines =
-                            CountingLinesClient.makeAsyncApiCallForCounting(connectionForCountingLines);
-                    try {
-                        report = svnRepoClass.generatingReport(
-                                localhostUrlForGeneratingReport, statisticsOfCountingLines.get());
-                    } catch (ExecutionException e) {
-                        throw new RuntimeException(e);
-                    }
-
-                } else {
-                    System.out.println("Wrong Version Control Used:" + versionControl);
-                    return false;
+                try {
+                    setupEnvironment(build, listener);
+                    Thread.sleep(DELAY);
+                } catch (ExecutionException e) {
+                    throw new ReportGenerationException("Error during generating report", e);
                 }
-                File artifactsDir = build.getArtifactsDir();
-                if (!artifactsDir.isDirectory()) {
-                    boolean success = artifactsDir.mkdirs();
-                    if (!success) {
-                        listener.getLogger()
-                                .println("Can't create artifacts directory at " + artifactsDir.getAbsolutePath());
-                    }
-                }
-                String path = artifactsDir.getCanonicalPath() + REPORT_TEMPLATE_PATH;
-                try (BufferedWriter writer = new BufferedWriter(
-                        new OutputStreamWriter(new FileOutputStream(path), StandardCharsets.UTF_8))) {
-                    writer.write(report.get().body());
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-                Thread.sleep(60 * 1000);
                 return super.tearDown(build, listener);
             }
         };
@@ -188,11 +130,95 @@ public class ProjectStatsBuildWrapper extends BuildWrapper {
         }
     }
 
-    public static LinkedHashMap<String, String> extractRepoDetails(AbstractBuild build, BuildListener listener)
+    private void setupEnvironment(AbstractBuild<?, ?> build, BuildListener listener)
+            throws IOException, InterruptedException, ExecutionException {
+        Map<String, String> repoDetails = extractRepoDetails(build, listener);
+        root = repoDetails.get(ROOT_KEY);
+        encodedRoot = URLEncoder.encode(root, StandardCharsets.UTF_8);
+        versionControl = repoDetails.get(VERSION_CONTROL_KEY);
+        branchName = repoDetails.get(BRANCH_NAME);
+        authenticationKey = repoDetails.get(AUTHENTICATION_KEY);
+
+        HttpURLConnection connectionForCountingLines = createConnectionForCountingLines();
+        if (connectionForCountingLines.getResponseCode() == HttpURLConnection.HTTP_OK) {
+            logger.info(CONNECTION_SUCCESSFUL_MESSAGE);
+        } else {
+            logger.error(CONNECTION_UNSUCCESSFUL_MESSAGE);
+        }
+
+        CompletableFuture<ProjectStats> statisticsForCountingLines =
+                statisticsForCountingLines(connectionForCountingLines);
+        CompletableFuture<HttpResponse<String>> report =
+                generateReport(LOCALHOST_URL_FOR_GENERATING_REPORT, statisticsForCountingLines.get());
+        writeReportToFile(report, build, listener);
+    }
+
+    private HttpURLConnection createConnectionForCountingLines() throws IOException {
+        HttpURLConnection connectionForCountingLines;
+        if (versionControl.equalsIgnoreCase(GITHUB)) {
+            GitHubRepoClass gitHubRepo = new GitHubRepoClass(encodedRoot, authenticationKey, branchName);
+            connectionForCountingLines = gitHubRepo.urlConnectionForCountingLines(LOCALHOST_URL_FOR_COUNTING);
+        } else if (versionControl.equalsIgnoreCase(GITLAB)) {
+            GitlabRepoClass gitlabRepo = new GitlabRepoClass(encodedRoot, authenticationKey, branchName);
+            connectionForCountingLines = gitlabRepo.urlConnectionForCountingLines(LOCALHOST_URL_FOR_COUNTING);
+        } else if (versionControl.equalsIgnoreCase(SVN)) {
+            SvnRepoClass svnRepoClass = new SvnRepoClass(encodedRoot, localDirectoryUrlForSvnWithEncoding);
+            connectionForCountingLines =
+                    svnRepoClass.urlConnectionForCountingLines(LOCALHOST_URL_FOR_COUNTING_SVN_REPOSITORY);
+        } else {
+            logger.error("Wrong Version Control Used: {}", versionControl);
+            throw new IllegalArgumentException("Wrong Version Control Used: " + versionControl);
+        }
+        return connectionForCountingLines;
+    }
+
+    private CompletableFuture<ProjectStats> statisticsForCountingLines(HttpURLConnection connectionForCountingLines) {
+        return CountingLinesClient.makeAsyncApiCallForCounting(connectionForCountingLines);
+    }
+
+    private CompletableFuture<HttpResponse<String>> generateReport(String urlForGeneratingReport, ProjectStats pj) {
+        GenerateReport generateReport = new GenerateReport();
+        return generateReport.generatingReport(urlForGeneratingReport, pj);
+    }
+
+    private void writeReportToFile(
+            CompletableFuture<HttpResponse<String>> report, AbstractBuild<?, ?> build, BuildListener listener)
+            throws IOException, InterruptedException, ExecutionException {
+
+        GetValuesFromConfigFile getValuesFromConfigFile = new GetValuesFromConfigFile();
+        String reportTemplatePath = getValuesFromConfigFile.getReportTemplatePathFromConfig();
+
+        File artifactsDir = createArtifactsDirectory(build, listener);
+        String path = artifactsDir.getCanonicalPath() + reportTemplatePath;
+
+        try (BufferedWriter writer =
+                new BufferedWriter(new OutputStreamWriter(new FileOutputStream(path), StandardCharsets.UTF_8))) {
+            if (report != null && report.get() != null && report.get().body() != null) {
+                writer.write(report.get().body());
+            } else {
+                logger.error("The report is null, please check.");
+            }
+        }
+    }
+
+    private File createArtifactsDirectory(AbstractBuild<?, ?> build, BuildListener listener) {
+        File artifactsDir = build.getRootDir().toPath().resolve("archive").toFile();
+
+        if (!artifactsDir.isDirectory()) {
+            boolean success = artifactsDir.mkdirs();
+            if (!success) {
+                listener.getLogger().println("Can't create artifacts directory at " + artifactsDir.getAbsolutePath());
+            }
+        }
+
+        return artifactsDir;
+    }
+
+    public static Map<String, String> extractRepoDetails(AbstractBuild<?, ?> build, BuildListener listener)
             throws IOException, InterruptedException {
         EnvVars envVars = build.getEnvironment(listener);
         String key = build.getProject().getScm().getKey();
-        LinkedHashMap<String, String> repoDetails = new LinkedHashMap<>();
+        Map<String, String> repoDetails = new LinkedHashMap<>();
         String[] parts = key.split(" ");
 
         if ("git".equalsIgnoreCase(parts[0])) {
@@ -206,28 +232,36 @@ public class ProjectStatsBuildWrapper extends BuildWrapper {
         return repoDetails;
     }
 
-    private static void extractGitRepoDetails(
-            String gitRepoDetails, EnvVars envVars, LinkedHashMap<String, String> repoDetails) {
-        repoDetails.put("branchName", envVars.get("GIT_BRANCH"));
-        repoDetails.put("root", envVars.get("GIT_URL"));
+    private static void extractGitRepoDetails(String gitRepoDetails, EnvVars envVars, Map<String, String> repoDetails) {
+        repoDetails.put(BRANCH_NAME, envVars.get("GIT_BRANCH"));
+        repoDetails.put(ROOT_KEY, envVars.get("GIT_URL"));
 
         for (String part : gitRepoDetails.split("/")) {
             if ("github.com".equalsIgnoreCase(part)) {
-                repoDetails.put("versionControl", "github");
-                repoDetails.put("authenticationKey", "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");
+                repoDetails.put(VERSION_CONTROL_KEY, GITHUB);
+                repoDetails.put(AUTHENTICATION_KEY, GITHUB_KEY);
             } else if ("gitlab.com".equalsIgnoreCase(part)) {
-                repoDetails.put("versionControl", "gitlab");
-                repoDetails.put("authenticationKey", "glpat-n6bxZQDixKNu1u9D4CEW");
+                repoDetails.put(VERSION_CONTROL_KEY, GITLAB);
+                repoDetails.put(AUTHENTICATION_KEY, GITLAB_KEY);
             }
         }
     }
 
-    private static void extractSvnRepoDetails(String svnRepoDetails, LinkedHashMap<String, String> repoDetails) {
-        repoDetails.put("versionControl", "svn");
-        repoDetails.put("root", svnRepoDetails);
+    private static void extractSvnRepoDetails(String svnRepoDetails, Map<String, String> repoDetails) {
+        repoDetails.put(VERSION_CONTROL_KEY, SVN);
+        repoDetails.put(ROOT_KEY, svnRepoDetails);
     }
 
-    private static void setDefaultRepoDetails(LinkedHashMap<String, String> repoDetails) {
-        repoDetails.put("versionControl", null);
+    private static void setDefaultRepoDetails(Map<String, String> repoDetails) {
+        repoDetails.put(VERSION_CONTROL_KEY, null);
+    }
+
+    private static String encodeUrl() {
+        final String localDirectoryUrlForSvnWithoutEncoding =
+                System.getProperty("user.dir") + File.separator + ProjectStatsBuildWrapper.RELATIVE_PATH;
+        String localDirectoryUrlForSvn = null;
+        localDirectoryUrlForSvn = URLEncoder.encode(localDirectoryUrlForSvnWithoutEncoding, StandardCharsets.UTF_8);
+
+        return localDirectoryUrlForSvn;
     }
 }

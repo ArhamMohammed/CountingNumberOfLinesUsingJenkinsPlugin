@@ -1,6 +1,8 @@
-package com.example.counting.numberoflines.DetailsFetcher;
+package com.example.counting.numberoflines.detailsfetcher;
 
-import com.example.counting.numberoflines.methods.countLinesInTheFile;
+import com.example.counting.numberoflines.methods.GetValuesFromConfigFile;
+import com.example.counting.numberoflines.exceptions.FileReadingException;
+import com.example.counting.numberoflines.methods.CountLinesInTheFile;
 import org.gitlab4j.api.GitLabApi;
 import org.gitlab4j.api.GitLabApiException;
 import org.gitlab4j.api.models.Project;
@@ -11,15 +13,15 @@ import org.jetbrains.annotations.NotNull;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 public class GitLabFileFetcher {
-
+    GetValuesFromConfigFile getValuesFromConfigFile = new GetValuesFromConfigFile();
     public GitLabApi authenticate(String key) {
-        GitLabApi gitLabApi = new GitLabApi("https://gitlab.com/", key);
-        return gitLabApi;
+        return new GitLabApi("https://gitlab.com/", key);
     }
 
     public Project projectName(@NotNull GitLabApi gitLabApi, @NotNull String root) throws GitLabApiException {
@@ -28,8 +30,9 @@ public class GitLabFileFetcher {
         String repoName = parts[parts.length - 1];
         return gitLabApi.getProjectApi().getProject(owner, repoName);
     }
-public static LinkedHashMap<String, Integer> fileAndLines(GitLabApi gitLabApi, Project project, String root, String branch) throws GitLabApiException, InterruptedException {
-        LinkedHashMap<String, Integer> numberOfLines = new LinkedHashMap<>();
+public Map<String, Integer> fileAndLines(GitLabApi gitLabApi, Project project, String root, String branch) throws GitLabApiException, InterruptedException {
+        CountLinesInTheFile countLinesInTheFile = new CountLinesInTheFile();
+        Map<String, Integer> numberOfLines = new LinkedHashMap<>();
         List<TreeItem> fileTree = gitLabApi.getRepositoryApi().getTree(project.getId(), root, branch);
         List<String> javaFiles = new ArrayList<>();
         findJavaFiles(fileTree, gitLabApi, project, javaFiles, branch);
@@ -49,10 +52,11 @@ public static LinkedHashMap<String, Integer> fileAndLines(GitLabApi gitLabApi, P
                     try {
                         fileContent = gitLabApi.getRepositoryFileApi().getFile(project.getId(), singleJavaFile, branch);
                     } catch (GitLabApiException e) {
-                        throw new RuntimeException(e);
+
+                        throw new FileReadingException(getValuesFromConfigFile.getErrorMessageForFileReading(),e);
                     }
                     String fileContentInString = fileContent.getDecodedContentAsString();
-                    int lines = countLinesInTheFile.countLinesFromAString(fileContentInString);
+                    int lines = countLinesInTheFile.countingLinesInTheFile(fileContentInString);
                     synchronized (numberOfLines) {
 // The synchronized keyword in Java is used to create a block of code (or method)
 // that can be accessed by only one thread at a time.

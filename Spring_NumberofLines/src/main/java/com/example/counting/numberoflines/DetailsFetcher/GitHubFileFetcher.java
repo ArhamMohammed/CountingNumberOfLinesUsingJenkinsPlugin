@@ -1,7 +1,9 @@
-package com.example.counting.numberoflines.DetailsFetcher;
-
-import com.example.counting.numberoflines.methods.countLinesInTheFile;
-import com.example.counting.numberoflines.methods.readContentFromTheFile;
+package com.example.counting.numberoflines.detailsfetcher;
+import com.example.counting.numberoflines.methods.GetValuesFromConfigFile;
+import com.example.counting.numberoflines.exceptions.FileReadingException;
+import com.example.counting.numberoflines.exceptions.RepositoryContentException;
+import com.example.counting.numberoflines.methods.CountLinesInTheFile;
+import com.example.counting.numberoflines.methods.ReadContentFromTheFile;
 import org.kohsuke.github.GHContent;
 import org.kohsuke.github.GHRepository;
 import org.kohsuke.github.GitHub;
@@ -10,18 +12,15 @@ import java.io.*;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 public class GitHubFileFetcher {
-    private GitHub github;
-    //TODO: Handle null cases, handle error cases, handle error token cases.
-
+    static GetValuesFromConfigFile getValuesFromConfigFile = new GetValuesFromConfigFile();
     public GitHub authenticate(String key) throws IOException {
-        github = GitHub.connectUsingOAuth(key);
-        return github;
+        return GitHub.connectUsingOAuth(key);
     }
 
     public GHRepository repo(GitHub github, String root) throws IOException {
@@ -29,13 +28,14 @@ public class GitHubFileFetcher {
         String owner = parts[parts.length - 2];
         String repoName = parts[parts.length - 1];
 
-        GHRepository repo = github.getRepository(owner + "/" + repoName);
-        return repo;
+        return github.getRepository(owner + "/" + repoName);
     }
 
-    public LinkedHashMap<String, Integer> numberOfLines(GHRepository repo) throws IOException, InterruptedException {
-        LinkedHashMap<String, Integer> numberOfLines = new LinkedHashMap<>();
+    public Map<String, Integer> numberOfLines(GHRepository repo) throws IOException, InterruptedException {
+        Map<String, Integer> numberOfLines = new LinkedHashMap<>();
         ExecutorService executorService = Executors.newFixedThreadPool(10);
+        CountLinesInTheFile countLinesInTheFile = new CountLinesInTheFile();
+        ReadContentFromTheFile readingContentFromTheFile = new ReadContentFromTheFile();
 
         List<String> javaFiles = findJavaFiles(repo);
 
@@ -49,14 +49,13 @@ public class GitHubFileFetcher {
 //  The .submit() method is used to submit a task for execution.
 //  It takes a Callable or Runnable object as an argument and
 //  returns a Future object representing the result of the task or null if the task completed successfully.
-//                    try {
                 String fileContent;
                 try {
-                    fileContent = readContentFromTheFile.readContent(content.read());
+                    fileContent = readingContentFromTheFile.readContent(content.read());
                 } catch (IOException e) {
-                    throw new RuntimeException(e);
+                    throw new FileReadingException(getValuesFromConfigFile.getErrorMessageForFileReading(),e);
                 }
-                int linesNumber = countLinesInTheFile.countLinesFromAString(fileContent);
+                int linesNumber = countLinesInTheFile.countingLinesInTheFile(fileContent);
                 synchronized (numberOfLines) {
 // The synchronized keyword in Java is used to create a block of code (or method)
 // that can be accessed by only one thread at a time.
@@ -78,18 +77,20 @@ public class GitHubFileFetcher {
 
             while(!contentList.isEmpty()){
                 List<GHContent> javaFiles = contentList.stream()
-                                            .filter(content -> !content.isDirectory() && content.getName().endsWith(".java"))
-                                            .collect(Collectors.toList());
-                allJavaFiles.addAll(javaFiles.stream().map(GHContent::getPath).collect(Collectors.toList()));
+                        .filter(content -> !content.isDirectory() && content.getName().endsWith(".java")).toList();
+                allJavaFiles.addAll(javaFiles.stream().map(GHContent::getPath).toList());
 
                 contentList = contentList.stream().filter(GHContent::isDirectory).flatMap(content -> {
                     try {
                         return repo.getDirectoryContent(content.getPath()).stream();
                     } catch (IOException e) {
-                        throw new RuntimeException(e);
+                        throw new RepositoryContentException(getValuesFromConfigFile.getErrorMessageForDirectoryReading(),e);
                     }
-                }).collect(Collectors.toList());
+                }).toList();
             }
+//        The key problem is that .collect(Collectors.toList()) actually returns a mutable kind of List
+//        while in the majority of cases unmodifiable lists are preferred.
+//        Since Java 16 there is now a better variant to produce an unmodifiable list directly from a stream: Stream.toList().
             return allJavaFiles;
     }
 }
